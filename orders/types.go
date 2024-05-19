@@ -1,9 +1,13 @@
 package main
 
-import "context"
+import (
+	"context"
+	pb "github.com/vynquoc/go-oms-common/api"
+)
 
 type OrdersService interface {
 	CreateOrder(context.Context) error
+	ValidateOrder(context.Context, *pb.CreateOrderRequest) error
 }
 
 type OrdersStore interface {
