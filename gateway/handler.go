@@ -6,16 +6,17 @@ import (
 
 	common "github.com/vynquoc/go-oms-common"
 	pb "github.com/vynquoc/go-oms-common/api"
+	"github.com/vynquoc/go-oms-gateway/gateway"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type handler struct {
-	client pb.OrdersServiceClient
+	gateway gateway.OrdersGateway
 }
 
-func NewHandler(client pb.OrdersServiceClient) *handler {
-	return &handler{client}
+func NewHandler(gateway gateway.OrdersGateway) *handler {
+	return &handler{gateway: gateway}
 }
 
 func (h *handler) registerRoutes(mux *http.ServeMux) {
@@ -36,7 +37,7 @@ func (h *handler) HandleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	o, err := h.client.CreateOrder(r.Context(), &pb.CreateOrderRequest{
+	o, err := h.gateway.CreateOrder(r.Context(), &pb.CreateOrderRequest{
 		CustomerID: customerID,
 		Items:      items,
 	})

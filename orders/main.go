@@ -1,18 +1,45 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net"
+	"time"
 
 	common "github.com/vynquoc/go-oms-common"
+	"github.com/vynquoc/go-oms-common/discovery"
+	"github.com/vynquoc/go-oms-common/discovery/consul"
 	"google.golang.org/grpc"
 )
 
 var (
-	grpcAddr = common.EnvString("GRPC_ADDR", "localhost:3001")
+	serviceName = "orders"
+	grpcAddr    = common.EnvString("GRPC_ADDR", "localhost:3002")
+	consulAddr  = common.EnvString("CONSUL_ADDR", "localhost:8500")
 )
 
 func main() {
+	registry, err := consul.NewRegistry(consulAddr, serviceName)
+	if err != nil {
+		panic(err)
+	}
+
+	ctx := context.Background()
+	instanceID := discovery.GenerateInstanceID(serviceName)
+	if err := registry.Register(ctx, instanceID, serviceName, grpcAddr); err != nil {
+		panic(err)
+	}
+	go func() {
+		for {
+			if err := registry.HealthCheck(instanceID, serviceName); err != nil {
+				log.Fatal("failed to healthcheck")
+			}
+			time.Sleep(time.Second * 1)
+		}
+	}()
+
+	defer registry.DeRegister(ctx, instanceID, serviceName)
+
 	grpcServer := grpc.NewServer()
 	l, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
