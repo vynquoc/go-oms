@@ -7,15 +7,20 @@ import (
 	"time"
 
 	common "github.com/vynquoc/go-oms-common"
+	"github.com/vynquoc/go-oms-common/broker"
 	"github.com/vynquoc/go-oms-common/discovery"
 	"github.com/vynquoc/go-oms-common/discovery/consul"
 	"google.golang.org/grpc"
 )
 
 var (
-	serviceName = "orders"
-	grpcAddr    = common.EnvString("GRPC_ADDR", "localhost:3002")
-	consulAddr  = common.EnvString("CONSUL_ADDR", "localhost:8500")
+	serviceName  = "orders"
+	grpcAddr     = common.EnvString("GRPC_ADDR", "localhost:3002")
+	consulAddr   = common.EnvString("CONSUL_ADDR", "localhost:8500")
+	amqpUser     = common.EnvString("RABBITMQ_USER", "guest")
+	amqpPassword = common.EnvString("RABBITMQ_PASSWORD", "guest")
+	amqpHost     = common.EnvString("RABBITMQ_HOST", "localhost")
+	amqpPort     = common.EnvString("RABBITMQ_PORT", "5672")
 )
 
 func main() {
@@ -40,6 +45,13 @@ func main() {
 
 	defer registry.DeRegister(ctx, instanceID, serviceName)
 
+	ch, close := broker.Connect(amqpUser, amqpPassword, amqpHost, amqpPort)
+
+	defer func() {
+		close()
+		ch.Close()
+	}()
+
 	grpcServer := grpc.NewServer()
 	l, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
@@ -50,7 +62,7 @@ func main() {
 	store := NewStore()
 	svc := NewService(store)
 
-	NewGRPCHandler(grpcServer, svc)
+	NewGRPCHandler(grpcServer, svc, ch)
 
 	log.Println("GRPC Order service started at:", grpcAddr)
 
