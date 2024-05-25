@@ -6,10 +6,12 @@ import (
 	"net"
 	"time"
 
+	"github.com/stripe/stripe-go/v78"
 	common "github.com/vynquoc/go-oms-common"
 	"github.com/vynquoc/go-oms-common/broker"
 	"github.com/vynquoc/go-oms-common/discovery"
 	"github.com/vynquoc/go-oms-common/discovery/consul"
+	stripeProcessor "github.com/vynquoc/go-oms-payments/processor/stripe"
 	"google.golang.org/grpc"
 )
 
@@ -21,6 +23,7 @@ var (
 	amqpPassword = common.EnvString("RABBITMQ_PASSWORD", "guest")
 	amqpHost     = common.EnvString("RABBITMQ_HOST", "localhost")
 	amqpPort     = common.EnvString("RABBITMQ_PORT", "5672")
+	stripeKey    = common.EnvString("STRIPE_KEY", "sk_test_51PFVb72KofBMjvPrdSHUUhmLzskCch287HbIfFs5e9bKDwN6Xn7Y8JQoFExsgSr3n523CsJ9H9XmJJxIsieDm3Nc003XvMAYOS")
 )
 
 func main() {
@@ -45,13 +48,18 @@ func main() {
 
 	defer registry.DeRegister(ctx, instanceID, serviceName)
 
+	//stripe setup
+	stripe.Key = stripeKey
+
+	// broker connection
 	ch, close := broker.Connect(amqpUser, amqpPassword, amqpHost, amqpPort)
 
 	defer func() {
 		close()
 		ch.Close()
 	}()
-	svc := NewService()
+	stripeProcessor := stripeProcessor.NewProcessor()
+	svc := NewService(stripeProcessor)
 
 	amqpConsumer := NewConsumer(svc)
 
