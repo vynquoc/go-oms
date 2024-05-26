@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	_ "github.com/joho/godotenv/autoload"
 	common "github.com/vynquoc/go-oms-common"
 	"github.com/vynquoc/go-oms-common/broker"
 	"github.com/vynquoc/go-oms-common/discovery"

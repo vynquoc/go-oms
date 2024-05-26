@@ -4,8 +4,10 @@ import (
 	"context"
 	"log"
 	"net"
+	"net/http"
 	"time"
 
+	_ "github.com/joho/godotenv/autoload"
 	"github.com/stripe/stripe-go/v78"
 	common "github.com/vynquoc/go-oms-common"
 	"github.com/vynquoc/go-oms-common/broker"
@@ -16,14 +18,16 @@ import (
 )
 
 var (
-	serviceName  = "payments"
-	grpcAddr     = common.EnvString("GRPC_ADDR", "localhost:3003")
-	consulAddr   = common.EnvString("CONSUL_ADDR", "localhost:8500")
-	amqpUser     = common.EnvString("RABBITMQ_USER", "guest")
-	amqpPassword = common.EnvString("RABBITMQ_PASSWORD", "guest")
-	amqpHost     = common.EnvString("RABBITMQ_HOST", "localhost")
-	amqpPort     = common.EnvString("RABBITMQ_PORT", "5672")
-	stripeKey    = common.EnvString("STRIPE_KEY", "sk_test_51PFVb72KofBMjvPrdSHUUhmLzskCch287HbIfFs5e9bKDwN6Xn7Y8JQoFExsgSr3n523CsJ9H9XmJJxIsieDm3Nc003XvMAYOS")
+	serviceName          = "payments"
+	grpcAddr             = common.EnvString("GRPC_ADDR", "localhost:3003")
+	httpAddr             = common.EnvString("HTTP_ADDR", "localhost:8081")
+	consulAddr           = common.EnvString("CONSUL_ADDR", "localhost:8500")
+	amqpUser             = common.EnvString("RABBITMQ_USER", "guest")
+	amqpPassword         = common.EnvString("RABBITMQ_PASSWORD", "guest")
+	amqpHost             = common.EnvString("RABBITMQ_HOST", "localhost")
+	amqpPort             = common.EnvString("RABBITMQ_PORT", "5672")
+	stripeKey            = common.EnvString("STRIPE_KEY", "")
+	endpointStripeSecret = common.EnvString("ENDPOINT_STRIPE_SECRET", "whsec...")
 )
 
 func main() {
@@ -64,6 +68,19 @@ func main() {
 	amqpConsumer := NewConsumer(svc)
 
 	go amqpConsumer.Listen(ch)
+
+	//http server
+
+	mux := http.NewServeMux()
+	httpServer := NewPaymentHTTPHandler(ch)
+	httpServer.registerRoutes(mux)
+
+	go func() {
+		log.Printf("Starting HTTP server at %s", httpAddr)
+		if err := http.ListenAndServe(httpAddr, mux); err != nil {
+			log.Fatal("Failed to start http server")
+		}
+	}()
 
 	grpcServer := grpc.NewServer()
 	l, err := net.Listen("tcp", grpcAddr)
