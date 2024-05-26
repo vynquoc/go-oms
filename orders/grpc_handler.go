@@ -27,8 +27,12 @@ func NewGRPCHandler(grpcServer *grpc.Server, service OrdersService, channel *amq
 
 func (h *grpcHandler) CreateOrder(ctx context.Context, payload *pb.CreateOrderRequest) (*pb.Order, error) {
 	log.Printf("New order received %v", payload)
+	items, err := h.service.ValidateOrder(ctx, payload)
+	if err != nil {
+		return nil, err
+	}
 
-	o, err := h.service.CreateOrder(ctx, payload)
+	o, err := h.service.CreateOrder(ctx, payload, items)
 	marshalledOrder, err := json.Marshal(o)
 	if err != nil {
 		log.Fatal(err)
@@ -44,4 +48,9 @@ func (h *grpcHandler) CreateOrder(ctx context.Context, payload *pb.CreateOrderRe
 		Body:        marshalledOrder,
 	})
 	return o, nil
+}
+
+func (h *grpcHandler) GetOrder(ctx context.Context, payload *pb.GetOrderRequest) (*pb.Order, error) {
+	return h.service.GetOrder(ctx, payload)
+
 }

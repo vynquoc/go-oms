@@ -20,7 +20,29 @@ func NewHandler(gateway gateway.OrdersGateway) *handler {
 }
 
 func (h *handler) registerRoutes(mux *http.ServeMux) {
+	//static
+	mux.Handle("/", http.FileServer(http.Dir("public")))
+
 	mux.HandleFunc("POST /api/customers/{customerID}/orders", h.HandleCreateOrder)
+	mux.HandleFunc("GET /api/customers/{customerID}/orders/{orderID}", h.HandleCreateOrder)
+}
+
+func (h *handler) HandleGetOrder(w http.ResponseWriter, r *http.Request) {
+	customerID := r.PathValue("customerID")
+	orderID := r.PathValue("orderID")
+
+	o, err := h.gateway.GetOrder(r.Context(), orderID, customerID)
+	errorStatus := status.Convert(err)
+	if errorStatus != nil {
+		if errorStatus.Code() != codes.InvalidArgument {
+			common.WriteError(w, http.StatusBadRequest, errorStatus.Message())
+			return
+		}
+		common.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	common.WriteJson(w, http.StatusOK, o)
 }
 
 func (h *handler) HandleCreateOrder(w http.ResponseWriter, r *http.Request) {
